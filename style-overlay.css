@@ -18,7 +18,7 @@
   display: flex;
 }
 
-.section.overlays .user-overlay {
+.section.overlays .basic-overlay {
   position: relative;
   display: none;
   border: 2px solid black;
@@ -29,7 +29,7 @@
   align-items: center;
   flex-direction: column;
 }
-.section.overlays .user-overlay.open {
+.section.overlays .basic-overlay.open {
   display: flex;
 }
 
@@ -55,4 +55,22 @@
   position: absolute;
   top: 10px;
   right: 10px;
+}
+
+.section.overlays .status-overlay .status-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.section.overlays .status-overlay .status {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  min-height: 30px;
+  min-width: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

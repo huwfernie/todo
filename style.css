@@ -61,12 +61,23 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  align-self: center;
 }
 
 .table-item span[data-title] {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.table-item.expanded span[data-title] {
+  white-space: initial;
+  overflow: initial;
+}
+.table-item:focus-within span[data-title] {
+  white-space: initial;
+  overflow: initial;
 }
 
 .table-item .button-wrapper {
@@ -125,41 +136,15 @@ body {
   grid-column-start: 2;
 }
 
-/* Edit Save Button */
-.table-item [data-archived-button] .undo {
-  display: none;
+.table-item[data-display-status="inprogress"] {
+  border: 2px solid green;
 }
-.table-item [data-archived-button] .archive, .table-item [data-archived-button] .undo {
-  pointer-events: none;
-}
-.table-item[data-display-status="archived"] [data-archived-button] .undo {
-  display: block;
-}
-.table-item[data-display-status="archived"] [data-archived-button] .archive {
-  display: none;
-}
-
-/* Done Undo Button */
-.table-item [data-complete-button] .undo {
-  display: none;
-}
-.table-item [data-complete-button] .undo, .table-item [data-complete-button] .done {
-  pointer-events: none;
-}
-.table-item[data-display-status="complete"] [data-complete-button] .undo {
-  display: block;
-}
-.table-item[data-display-status="complete"] [data-complete-button] .done {
-  display: none;
-}
-
 .table-item[data-display-status="archived"] {
   border: 2px dashed red;
 }
 .table-item[data-display-status="complete"] {
   border: 2px solid green;
-  opacity: 0.7;
-  background-color: lemonchiffon;
+  background-color: lightgreen;
 }
 
 .table-content .static-content {
