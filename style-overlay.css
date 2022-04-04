@@ -1,0 +1,58 @@
+.section {
+  width: 100%;
+}
+
+.section.overlays {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.section.overlays.open {
+  display: flex;
+}
+
+.section.overlays .user-overlay {
+  position: relative;
+  display: none;
+  border: 2px solid black;
+  border-radius: 13px;
+  background-color: white;
+  min-width: 160px;
+  padding: 40px 20px;
+  align-items: center;
+  flex-direction: column;
+}
+.section.overlays .user-overlay.open {
+  display: flex;
+}
+
+.section.overlays .user-overlay .user-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  width: 100%;
+}
+
+.section.overlays .user-overlay .user {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 100%;
+  min-height: 30px;
+  min-width: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.section.overlays .overlay-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Todo Site</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style-overlay.css">
+    <meta property="og:title" content="Todo Site" />
+    <meta property="og:image" content="./og.png" />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+
+    <div id="app">
+
+      <!--Add buttons to initiate auth sequence and sign out-->
+      <nav class="nav-button-wrapper">
+        <button id="authorize_button" style="display: none;">Authorize</button>
+        <button id="signout_button" style="display: none;">Sign Out</button>
+        <button id="new_button">New Todo</button>
+        <button id="save_button">Save Changes</button>
+      </nav>
+
+      <h1 class="headline">Todo list</h1>
+
+      <section class="section table">
+        <div class="table-content flex-wrapper">
+          <div class="dynamic-content">
+            <!--<div class="table-item">
+              <span data-owner="r">R</span>
+              <span data-title="">Council Tax</span>
+              <span class="button-wrapper">
+                <button data-complete-button="">Done</button>
+                <button data-edit-button="">Edit</button>
+                <button data-more-button=""><span class="more">More +</span><span class="less">Less -</span></button>
+                </span>
+              </div>-->
+          </div>
+          <div class="static-content">
+            <div class="table-item" data-status="edited">
+              <span data-owner="new" contenteditable=true>-</span>
+              <span data-title contenteditable=true>New Item</span>
+              <span class="button-wrapper">
+                <button data-complete-button data-sheet-column><span class="done">Done</span><span class="undo">Undo</span></button>
+                <button data-more-button><span class="more">More +</span><span class="less">Less -</span></button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section overlays">
+        <overlay class="user-overlay">
+          <p>Pick a user</p>
+          <div class="user-wrapper">
+            <span class="user" data-owner="r">R</span>
+            <span class="user" data-owner="h">H</span>
+          </div>
+          <button class="overlay-close-button">Close</button>
+        </overlay>
+      </section>
+      <footer>
+        <figure class="footer-image"></figure>
+    </div>
+
+    <script type="text/javascript">
+      const settings = {
+        spreadsheetId: '',
+        defaultRangeSheet: 'Sheet1',
+        users: ['H', 'R']
+      }
+
+      var state = {
+        overlayContext: null
+      }
+
+      function parseQuery(queryString) {
+        var query = {};
+        var pairs = (queryString[0] === '?' ? queryString.substr(1) : queryString).split('&');
+        for (var i = 0; i < pairs.length; i++) {
+          var pair = pairs[i].split('=');
+          query[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
+        }
+        return query;
+      }
+
+      const queryStrings = parseQuery(window.location.search);
+
+      settings.spreadsheetId = queryStrings.sheetId;
+      settings.clientId = queryStrings.clientId;
+      settings.apiKey = queryStrings.apiKey;
+
+      // Client ID and API key from the Developer Console
+      var CLIENT_ID = settings.clientId;
+      var API_KEY = settings.apiKey;
+
+      // Array of API discovery doc URLs for APIs used by the quickstart
+      var DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      // var SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly"; // OLD
+      var SCOPES = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets";
+
+      var authorizeButton = document.getElementById('authorize_button');
+      var signoutButton = document.getElementById('signout_button');
+
+      /**
+       *  On load, called to load the auth2 library and API client library.
+       */
+      function handleClientLoad() {
+        gapi.load('client:auth2', initClient);
+      }
+
+      /**
+       *  Initializes the API client library and sets up sign-in state
+       *  listeners.
+       */
+      function initClient() {
+        gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
+          scope: SCOPES
+        }).then(function () {
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+          // Handle the initial sign-in state.
+          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+          authorizeButton.onclick = handleAuthClick;
+          signoutButton.onclick = handleSignoutClick;
+        }, function(error) {
+          // appendPre(JSON.stringify(error, null, 2));
+        });
+      }
+
+      /**
+       *  Called when the signed in status changes, to update the UI
+       *  appropriately. After a sign-in, the API is called.
+       */
+      function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'inline-block';
+          getTableData(); // HERE!
+        } else {
+          authorizeButton.style.display = 'inline-block';
+          signoutButton.style.display = 'none';
+        }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
+
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+      }
+
+      /**
+       * Print the names and majors of students in a sample spreadsheet:
+       * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
+       */
+      function listTitles(data) {
+        data.forEach((title) => {
+          let el = document.querySelector(`[data-${title.toLowerCase().replace('_','-')}]`);
+          if (el !== null) {
+            el.innerText = title;
+          }
+        });
+      }
+
+      /**
+       * Print the names and majors of students in a sample spreadsheet:
+       * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
+       */
+      function getTableData() {
+        gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: settings.spreadsheetId,
+          range: settings.defaultRangeSheet,
+        }).then(function(response) {
+          state.tableData = response.result.values;
+          // console.log(state.tableData);
+          state.siteData = formatDataForSite();
+          // console.log(state.siteData);
+          // const output = formatDataForSheet(state.siteData);
+          // console.log(output);
+          listToDos();
+        }, function(response) {
+          // appendPre('Error: ' + response.result.error.message);
+        });
+      }
+
+      function setTableData(newData) {
+        var params = {
+          spreadsheetId: settings.spreadsheetId,
+          range: 'sheet1',
+          valueInputOption: 'USER_ENTERED',
+        };
+
+        var valueRangeBody = {
+          "values": newData
+        }
+
+        var request = gapi.client.sheets.spreadsheets.values.update(params, valueRangeBody);
+        request.then(function(response) {
+          // TODO: Change code below to process the `response` object:
+        }, function(reason) {
+          console.error('error: ' + reason.result.error.message);
+        });
+      }
+
+      function formatDataForSite() {
+        const titles = state.tableData[0];
+        state.siteTitleKeys = titles.map((title) => {return title.toLowerCase()})
+        const rows = state.tableData.slice(1);
+        const data = [];
+        if (titles.length > 0 && rows.length > 0) {
+          rows.forEach((row, indexY) => {
+            const newRow = {}
+            row.forEach((column, indexX) => {
+              const title = state.siteTitleKeys[indexX].toLowerCase();
+              newColumn = new Object;
+              newColumn.locationX = indexX;
+              newColumn.locationY = indexY;
+              newColumn.value = column;
+              const newItem = {
+                [title]: newColumn
+              }
+              Object.assign(newRow, newItem);
+            });
+            data.push(newRow);
+          });
+        }
+        return data;
+      }
+
+      function formatDataForSheet(input) {
+        const titles = state.tableData[0];
+        const data = [];
+        data.push(titles);
+        input.forEach((row) => {
+          newRow = [];
+          titles.forEach((title) => {
+            newRow.push(row[title.toLowerCase()].value);
+          });
+          data.push(newRow);
+        });
+        return data;
+      }
+
+      function listToDos() {
+        const data = state.siteData.filter((item) => {
+          return item.archived.value !== 'TRUE';
+        })
+        data.forEach((todo) => {
+          listToDo(todo);
+        })
+      }
+
+      /**
+       * Print the names and majors of students in a sample spreadsheet:
+       * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
+       */
+      function listToDo(todo) {
+        const parentEl = document.querySelector('.table-content .dynamic-content');
+        const nodeRow = document.createElement('div');
+        nodeRow.classList.add('table-item');
+        nodeRow.dataset.displayStatus = 'pristine';
+        if (todo.complete.value === "TRUE") {
+          nodeRow.dataset.displayStatus = 'complete';
+        }
+        if (todo.archived.value === "TRUE") {
+          nodeRow.dataset.displayStatus = 'archived';
+        }
+
+        // title, owner, complete, edit, more
+        const data = [
+          { name: 'title',
+            value: todo.title.value,
+            elem: 'span',
+            x: todo.title.locationX,
+            y: todo.title.locationY
+          },
+          { name: 'owner',
+            value: todo.owner.value,
+            elem: 'span',
+            x: todo.owner.locationX,
+            y: todo.owner.locationY
+          },{ name: 'details',
+            value: todo.details.value,
+            elem: 'span',
+            x: todo.details.locationX,
+            y: todo.details.locationY
+          }
+        ];
+        const buttons = [
+          {
+            name: 'archived',
+            elem: 'button',
+            html: `<span class="archive">Archive</span><span class="undo">Undo</span><span class="hidden-value" data-table-data data-sheet-x="${todo.archived.locationX}" data-sheet-y="${todo.archived.locationY}">${todo.archived.value}</span>`
+          },{
+            name: 'complete',
+            elem: 'button',
+            html: `<span class="done">Done</span><span class="undo">Undo</span><span class="hidden-value" data-table-data data-sheet-x="${todo.complete.locationX}" data-sheet-y="${todo.complete.locationY}">${todo.complete.value}</span>`
+          },{
+            name: 'more',
+            elem: 'button',
+            html: '<span class="more">More +</span><span class="less">Less -</span>'
+          }
+        ];
+
+        data.forEach((item) => {
+          const nodeSpan = document.createElement(item.elem);
+          nodeSpan.innerText = item.value;
+          nodeSpan.setAttribute('data-table-data', '');
+          nodeSpan.setAttribute('data-sheet-x', item.x);
+          nodeSpan.setAttribute('data-sheet-y', item.y);
+          nodeSpan.setAttribute('contenteditable', true);
+          if (item.name === 'owner') {
+            nodeSpan.setAttribute(`data-${item.name}`, `${item.value.toLowerCase()}`);
+            nodeSpan.addEventListener('click', (e) => {openOverlay('user-overlay', e.target)})
+          } else {
+            nodeSpan.setAttribute(`data-${item.name}`, '');
+          }
+          nodeRow.appendChild(nodeSpan);
+        });
+
+        const nodeButtonWrapper = document.createElement('span');
+        nodeButtonWrapper.classList.add('button-wrapper');
+        buttons.forEach((item) => {
+          const nodeSpan = document.createElement(item.elem);
+          nodeSpan.innerHTML = item.html;
+          nodeSpan.setAttribute(`data-${item.name}-button`, '');
+          nodeButtonWrapper.appendChild(nodeSpan);
+        });
+        nodeRow.appendChild(nodeButtonWrapper);
+        parentEl.appendChild(nodeRow);
+
+        setupButtons('[data-complete-button]', doneButtonClick);
+        setupButtons('[data-more-button]', moreButtonClick);
+        setupButtons('[data-archived-button]', archivedButtonClick);
+      }
+
+      function findParentRow(el) {
+        if (el.classList.value.includes('table-item') === true) {
+          return el;
+        } else {
+          return findParentRow(el.parentElement);
+        }
+      }
+
+      function newButtonClick() {
+        const date = new Date;
+        const dateString = `${date.getDate()}/${date.getMonth() +1}/${date.getFullYear()}`;
+        const template = {
+          archived: "FALSE",
+          complete: "FALSE",
+          date_created: dateString
+        };
+
+        const locationY = state.siteData.length;
+        const templateThree = new Object;
+        // console.log(state);
+        state.siteTitleKeys.forEach((key) => {
+          templateThree[key] = new Object;
+          templateThree[key].locationX = state.siteData[0][key].locationX;
+          templateThree[key].locationY = state.siteData.length;
+          templateThree[key].value = key;
+        })
+
+        Object.keys(template).forEach((key) => {
+          templateThree[key].value = template[key];
+        })
+
+        state.siteData.push(templateThree);
+        console.log(state.siteData);
+
+        listToDo(templateThree);
+      }
+
+      function saveButtonClick() {
+        const newData = state.siteData;
+        let el = document.querySelector('.dynamic-content');
+        let elements = [...el.querySelectorAll('[data-table-data]')];
+        elements.forEach((child) => {
+          let x = child.dataset.sheetX;
+          let y = child.dataset.sheetY;
+          let key = state.siteTitleKeys[x];
+          let value = child.innerText;
+          state.siteData[y][key].value = value;
+        });
+        const data = formatDataForSheet(state.siteData);
+        setTableData(data);
+      }
+
+      function moreButtonClick(e) {
+        const containterEl = findParentRow(e.target);
+        containterEl.classList.toggle('expanded');
+        const expanded = containterEl.classList.value.includes('expanded');
+      }
+
+      function doneButtonClick(e) {
+        const buttonEl = e.target;
+        const containterEl = findParentRow(buttonEl);
+        const status = containterEl.dataset.displayStatus;
+        const valueEl = buttonEl.querySelector('.hidden-value');
+        if (status === 'pristine') {
+          containterEl.dataset.displayStatus = 'complete';
+          valueEl.innerText = 'TRUE'
+        } else if (status === 'complete') {
+          containterEl.dataset.displayStatus = 'pristine';
+          valueEl.innerText = 'FALSE'
+        } else if (status === 'archived') {
+          alert('Cannot mark complete while Archived');
+        }
+      }
+
+      function archivedButtonClick(e) {
+        const buttonEl = e.target;
+        const containterEl = findParentRow(buttonEl);
+        const status = containterEl.dataset.displayStatus;
+        const valueEl = buttonEl.querySelector('.hidden-value');
+        if (status === 'complete') {
+          containterEl.dataset.displayStatus = 'archived';
+          valueEl.innerText = 'TRUE'
+        } else if (status === 'archived') {
+          containterEl.dataset.displayStatus = 'complete';
+          valueEl.innerText = 'FALSE'
+        }
+      }
+
+      function openOverlay(overlay, caller) {
+        document.querySelector('.section.overlays').classList.add('open');
+        document.querySelector(`.section.overlays .${overlay}`).classList.add('open');
+        state.overlayContext = caller;
+      }
+
+      function closeOverlay(event) {
+        event.target.parentElement.classList.remove('open');
+        document.querySelector('.section.overlays').classList.remove('open');
+      }
+
+      function setupButtons(selector, clickFunction) {
+        [...document.querySelectorAll(selector)].forEach((elem) => {
+          if (elem.dataset.active !== 'true') {
+            elem.dataset.active = 'true';
+            elem.addEventListener('click', clickFunction);
+          }
+        });
+      }
+
+      [...document.querySelectorAll('.overlay-close-button')].forEach((elem) => {
+        elem.addEventListener('click', closeOverlay);
+      });
+
+      [...document.querySelectorAll('.user-overlay .user')].forEach((elem) => {
+        elem.addEventListener('click', e => {
+          const target = state.overlayContext;
+          const source = elem;
+          target.dataset.owner = source.dataset.owner
+          target.innerText = source.innerText
+          closeOverlay(e);
+        });
+      });
+
+      document.querySelector('#new_button').addEventListener('click', newButtonClick);
+      document.querySelector('#save_button').addEventListener('click', saveButtonClick);
+    </script>
+
+    <script async defer src="https://apis.google.com/js/api.js"
+      onload="this.onload=function(){};handleClientLoad()"
+      onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+  </body>
+</html>
